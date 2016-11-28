@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <errno.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <poll.h>
 
 
 int com_tcp_connect(const char *host, const char *service)
@@ -38,6 +39,9 @@ int com_tcp_connect(const char *host, const char *service)
 		return -1;
 	}
 	freeaddrinfo(result);
+	/* Set file descriptor to non blocking */
+	status = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, status | O_NONBLOCK);
 	/* Return the connected file descriptor */
 	return fd;
 }
