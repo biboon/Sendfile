@@ -5,7 +5,7 @@
 
 int main(int argc, char const *argv[]) {
 	char buffer[] = "TEST";
-	int fd = com_tcp_connect(argv[1], argv[2]);
+	int fd = com_udp_connect(argv[1], argv[2]);
 	com_write(fd, buffer, sizeof(buffer), -1);
 	com_read(fd, buffer, sizeof(buffer), -1);
 	write(0, buffer, 7);

@@ -10,20 +10,20 @@
 #include <netdb.h>
 
 
-
-int com_tcp_connect(const char *host, const char *service)
+static inline int com_connect(const char *host, const char *service,
+										int family, int socktype)
 {
 	struct addrinfo hints, *result, *rp;
 	int status, fd;
 
 	/* Obtain addresses matching host/service */
 	memset (&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = family;
+	hints.ai_socktype = socktype;
 	/* Get address info */
 	status = getaddrinfo(host, service, &hints, &result);
 	if (status != 0) {
-		fprintf(stderr, "com_udp_connect.getaddrinfo: %s\n", gai_strerror(status));
+		fprintf(stderr, "com_connect.getaddrinfo: %s\n", gai_strerror(status));
 		return -1;
 	}
 	/* Go through the linked list and try to connect */
@@ -33,12 +33,12 @@ int com_tcp_connect(const char *host, const char *service)
 		if (-1 != connect(fd, rp->ai_addr, rp->ai_addrlen)) break;
 		close(fd);
 	}
+	freeaddrinfo(result);
 	/* If we could not connect */
 	if (rp == NULL) {
-		fprintf(stderr, "com_udp_connect: unable to connect\n");
+		fprintf(stderr, "com_connect: unable to connect\n");
 		return -1;
 	}
-	freeaddrinfo(result);
 	/* Set file descriptor to non blocking */
 	status = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, status | O_NONBLOCK);
@@ -47,9 +47,15 @@ int com_tcp_connect(const char *host, const char *service)
 }
 
 
+int com_tcp_connect(const char *host, const char *service)
+{
+	return com_connect(host, service, AF_UNSPEC, SOCK_STREAM);
+}
+
+
 int com_udp_connect(const char *host, const char *service)
 {
-	return 0;
+	return com_connect(host, service, AF_UNSPEC, SOCK_DGRAM);
 }
 
 
