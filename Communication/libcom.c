@@ -11,15 +11,18 @@
 
 
 static inline int com_connect(const char *host, const char *service,
-										int family, int socktype)
+	int flags, int family, int socktype, int protocol)
 {
-	struct addrinfo hints, *result, *rp;
 	int status, fd;
+	struct addrinfo *result, *rp;
+	/* Set hints to pass to getaddrinfo */
+	const struct addrinfo hints = {
+		.ai_flags = flags,
+		.ai_family = family,
+		.ai_socktype = socktype,
+		.ai_protocol = protocol
+	};
 
-	/* Obtain addresses matching host/service */
-	memset (&hints, 0, sizeof(hints));
-	hints.ai_family = family;
-	hints.ai_socktype = socktype;
 	/* Get address info */
 	status = getaddrinfo(host, service, &hints, &result);
 	if (status != 0) {
@@ -49,13 +52,13 @@ static inline int com_connect(const char *host, const char *service,
 
 int com_tcp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, AF_UNSPEC, SOCK_STREAM);
+	return com_connect(host, service, 0, AF_UNSPEC, SOCK_STREAM, 0);
 }
 
 
 int com_udp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, AF_UNSPEC, SOCK_DGRAM);
+	return com_connect(host, service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
 }
 
 
@@ -67,25 +70,35 @@ int com_tcp_bind(const char *service)
 ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
-	switch (poll(&_fd, 1, timeout)) {
-	case -1:
-		fprintf(stderr, "com_read.poll: %s\n", strerror(errno));
-		return -1;
-	case 0:
-		fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
-		return -1;
-	default:
-		if (_fd.revents & POLLIN)
-			return read(fd, buf, count);
-	}
-	return -1;
+	ssize_t size;
+	do {
+		switch (poll(&_fd, 1, timeout)) {
+		case -1:
+			fprintf(stderr, "com_read.poll: %s\n", strerror(errno));
+			return -1;
+		case 0:
+			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
+			return count;
+		default:
+			if (_fd.revents & POLLIN) {
+				size = read(fd, buf, count);
+				if (-1 == size) {
+					fprintf(stderr, "com_read.read: %s\n", strerror(errno));
+					return count;
+				}
+				buf += size;
+				count -= size;
+			}
+		}
+	} while (count);
+	return 0;
 }
 
 
 ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
-	ssize_t written;
+	ssize_t size;
 	do {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
@@ -93,16 +106,16 @@ ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 			return -1;
 		case 0:
 			fprintf(stderr, "com_write.poll: %d timeout (%d ms)\n", fd, timeout);
-			return -1;
+			return count;
 		default:
 			if (_fd.revents & POLLOUT) {
-				written = write(fd, buf, count);
-				if (-1 == written) {
+				size = write(fd, buf, count);
+				if (-1 == size) {
 					fprintf(stderr, "com_write.write: %s\n", strerror(errno));
 					return count;
 				}
-				buf += written;
-				count -= written;
+				buf += size;
+				count -= size;
 			}
 		}
 	} while (count);
