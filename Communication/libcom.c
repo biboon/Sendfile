@@ -10,7 +10,7 @@
 #include <netdb.h>
 
 
-#define LIBCOM_LISTEN_BACKLOG 2
+#define LIBCOM_LISTEN_BACKLOG 12
 
 
 /* Functions to connect udp/tcp sockets to host@service */
@@ -55,12 +55,12 @@ static inline int com_connect(const char *host, const char *service,
 
 int com_tcp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, 0, AF_UNSPEC, SOCK_STREAM, 0);
+	return com_connect(host, service, 0, AF_INET, SOCK_STREAM, 0);
 }
 
 int com_udp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
+	return com_connect(host, service, 0, AF_INET, SOCK_DGRAM, 0);
 }
 
 
@@ -106,7 +106,7 @@ static inline int com_bind(const char *service,
 
 int com_tcp_bind(const char *service)
 {
-	int fd = com_bind(service, 0, AF_UNSPEC, SOCK_STREAM, 0);
+	int fd = com_bind(service, AI_PASSIVE, AF_INET, SOCK_STREAM, 0);
 	/* Set SO_REUSEADDR option */
 	int opt = 1;
 	if (-1 == setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
@@ -123,7 +123,7 @@ int com_tcp_bind(const char *service)
 
 int com_udp_bind(const char *service)
 {
-	return com_bind(service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
+	return com_bind(service, 0, AF_INET, SOCK_DGRAM, 0);
 }
 
 void com_close(int fd)
@@ -133,15 +133,14 @@ void com_close(int fd)
 }
 
 
-/* Read and write functions
-	These functions try to read from or write to the file descriptor
-	exactly count bytes and store them in the buffer pointed by buf.
-	If timeout (milliseconds) is reached before the fd was available,
-	the function returns and gives the amount of bytes left to read
-	or write. If timeout is set to 0, the function immediately tries
-	to operate on the fd. If it is set to -1, the function will not
-	timeout and will only return if a signal is caught or if the
-	underlying socket is closed. */
+/*	Read and write functions
+	These functions try to read from or write to the file descriptor exactly
+	count bytes and store them in the buffer pointed by buf. If timeout
+	(milliseconds) is reached before the fd was available, the function returns
+	and gives the amount of bytes left to read or write. If timeout is set to 0,
+	the function immediately tries to operate on the fd. If it is set to -1, the
+	function will not timeout and will only return if a signal is caught or if
+	the underlying socket is closed. */
 ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
