@@ -85,7 +85,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
-	size_t written;
+	ssize_t written;
 	do {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
@@ -97,6 +97,10 @@ ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 		default:
 			if (_fd.revents & POLLOUT) {
 				written = write(fd, buf, count);
+				if (-1 == written) {
+					fprintf(stderr, "com_write.write: %s\n", strerror(errno));
+					return count;
+				}
 				buf += written;
 				count -= written;
 			}
