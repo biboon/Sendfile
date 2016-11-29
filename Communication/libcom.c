@@ -67,6 +67,17 @@ int com_tcp_bind(const char *service)
 	return 0;
 }
 
+int com_udp_bind(const char *service)
+{
+	return 0;
+}
+
+void com_close(int fd)
+{
+	shutdown(fd, SHUT_RDWR);
+	close(fd);
+}
+
 ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
