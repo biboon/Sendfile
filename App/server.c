@@ -17,7 +17,7 @@ int main(int argc, char const *argv[]) {
 	printf("Waiting for a client to connect...\n");
 	struct pollfd pollfd_bound = { .fd = fd_bound, .events = POLLIN };
 	if (poll(&pollfd_bound, 1, -1) <= 0) {
-		fprintf(stderr, "poll %s\n", strerror(errno));
+		perror("poll");
 		return -1;
 	}
 

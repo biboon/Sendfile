@@ -15,7 +15,7 @@
 #define LIBCOM_LISTEN_BACKLOG 12
 
 
-/* Functions to connect udp/tcp sockets to host@service */
+/* Functions to create a non blocking udp/tcp socket and connect it to host@service */
 static inline int com_connect(const char *host, const char *service,
 	int flags, int family, int socktype, int protocol)
 {
@@ -50,19 +50,21 @@ static inline int com_connect(const char *host, const char *service,
 	}
 	/* Set file descriptor to non blocking */
 	status = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, status | O_NONBLOCK);
+	if (status == -1) { perror("com_connect.fcntl"); com_close(fd); return -1; }
+	status = fcntl(fd, F_SETFL, status | O_NONBLOCK);
+	if (status == -1) { perror("com_connect.fcntl"); com_close(fd); return -1; }
 	/* Return the connected file descriptor */
 	return fd;
 }
 
 int com_tcp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, 0, AF_INET, SOCK_STREAM, 0);
+	return com_connect(host, service, 0, AF_UNSPEC, SOCK_STREAM, 0);
 }
 
 int com_udp_connect(const char *host, const char *service)
 {
-	return com_connect(host, service, 0, AF_INET, SOCK_DGRAM, 0);
+	return com_connect(host, service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
 }
 
 
@@ -101,31 +103,32 @@ static inline int com_bind(const char *service,
 	}
 	/* Set file descriptor to non blocking */
 	status = fcntl(fd, F_GETFL, 0);
-	fcntl(fd, F_SETFL, status | O_NONBLOCK);
+	if (status == -1) { perror("com_connect.fcntl"); com_close(fd); return -1; }
+	status = fcntl(fd, F_SETFL, status | O_NONBLOCK);
+	if (status == -1) { perror("com_connect.fcntl"); com_close(fd); return -1; }
 	/* Return the connected file descriptor */
 	return fd;
 }
 
 int com_tcp_bind(const char *service)
 {
-	int fd = com_bind(service, AI_PASSIVE, AF_INET, SOCK_STREAM, 0);
+	int fd = com_bind(service, AI_PASSIVE, AF_UNSPEC, SOCK_STREAM, 0);
+	if (fd == -1) return -1;
 	/* Set SO_REUSEADDR option */
 	int opt = 1;
 	if (-1 == setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-		fprintf(stderr, "com_tcp_bind.setsockopt: %s\n", strerror(errno));
-		return -1;
+		perror("com_tcp_bind.setsockopt"); com_close(fd); return -1;
 	}
 	/* Listen for new connections */
 	if (-1 == listen(fd, LIBCOM_LISTEN_BACKLOG)) {
-		fprintf(stderr, "com_tcp_bind.listen: %s\n", strerror(errno));
-		return -1;
+		perror("com_tcp_bind.listen"); com_close(fd); return -1;
 	}
 	return fd;
 }
 
 int com_udp_bind(const char *service)
 {
-	return com_bind(service, 0, AF_INET, SOCK_DGRAM, 0);
+	return com_bind(service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
 }
 
 
@@ -134,12 +137,12 @@ int com_get_info(int fd, char *host, size_t hostlen, char *serv, size_t servlen)
 	struct sockaddr_storage remote;
 	socklen_t _len = sizeof(remote);
 	if (-1 == getpeername(fd, (struct sockaddr *)&remote, &_len)) {
-		fprintf(stderr, "com_get_host.getpeername: %s\n", strerror(errno));
+		perror("com_get_host.getpeername");
 		return -1;
 	}
 	int status = getnameinfo((struct sockaddr *)&remote, _len, host, hostlen,
 										serv, servlen, 0);
-	if (status) {
+	if (status != 0) {
 		fprintf(stderr, "com_get_host.getnameinfo: %s\n", gai_strerror(status));
 		return -1;
 	}
@@ -168,7 +171,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 	do {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
-			fprintf(stderr, "com_read.poll: %s\n", strerror(errno));
+			perror("com_read.poll");
 			return -1;
 		case 0:
 			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
@@ -177,7 +180,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 			if (_fd.revents & POLLIN) {
 				size = read(fd, buf, count);
 				if (-1 == size) {
-					fprintf(stderr, "com_read.read: %s\n", strerror(errno));
+					perror("com_read.read");
 					return count;
 				}
 				buf += size;
@@ -196,7 +199,7 @@ ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 	do {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
-			fprintf(stderr, "com_write.poll: %s\n", strerror(errno));
+			perror("com_write.poll");
 			return -1;
 		case 0:
 			fprintf(stderr, "com_write.poll: %d timeout (%d ms)\n", fd, timeout);
@@ -205,7 +208,7 @@ ssize_t com_write(int fd, void *buf, size_t count, int timeout)
 			if (_fd.revents & POLLOUT) {
 				size = write(fd, buf, count);
 				if (-1 == size) {
-					fprintf(stderr, "com_write.write: %s\n", strerror(errno));
+					perror("com_write.write");
 					return count;
 				}
 				buf += size;
