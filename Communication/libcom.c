@@ -9,6 +9,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include "libcom.h"
+
 
 #define LIBCOM_LISTEN_BACKLOG 12
 
@@ -124,6 +126,24 @@ int com_tcp_bind(const char *service)
 int com_udp_bind(const char *service)
 {
 	return com_bind(service, 0, AF_INET, SOCK_DGRAM, 0);
+}
+
+
+int com_get_info(int fd, char *host, size_t hostlen, char *serv, size_t servlen)
+{
+	struct sockaddr_storage remote;
+	socklen_t _len = sizeof(remote);
+	if (-1 == getpeername(fd, (struct sockaddr *)&remote, &_len)) {
+		fprintf(stderr, "com_get_host.getpeername: %s\n", strerror(errno));
+		return -1;
+	}
+	int status = getnameinfo((struct sockaddr *)&remote, _len, host, hostlen,
+										serv, servlen, 0);
+	if (status) {
+		fprintf(stderr, "com_get_host.getnameinfo: %s\n", gai_strerror(status));
+		return -1;
+	}
+	return 0;
 }
 
 void com_close(int fd)

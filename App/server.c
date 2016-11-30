@@ -25,6 +25,9 @@ int main(int argc, char const *argv[]) {
 	int fd_client = accept(fd_bound, NULL, NULL);
 	if (fd_client == -1) return -1;
 	printf("Client connected!\n");
+	char host[20], serv[20];
+	com_get_info(fd_client, host, sizeof(host), serv, sizeof(serv));
+	printf("%d host %s serv %s\n", fd_client, host, serv);
 
 	size_t size = 50 * 1024 * 1024 * sizeof(char);
 	unsigned char *buffer = malloc(size);
