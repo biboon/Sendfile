@@ -192,7 +192,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 }
 
 
-ssize_t com_write(int fd, void *buf, size_t count, int timeout)
+ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 {
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
 	ssize_t size;
