@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -25,9 +26,10 @@ int main(int argc, char const *argv[]) {
 	if (fd_client == -1) return -1;
 	printf("Client connected!\n");
 
-	size_t size = 0;
-	com_read(fd_client, &size, sizeof(size), -1);
-	printf("Read size: %zu\n", size);
+	size_t size = 50 * 1024 * 1024 * sizeof(char);
+	unsigned char *buffer = malloc(size);
+	size = com_read(fd_client, buffer, size, -1);
+	printf("Read result: %zu\n", size);
 
 	com_close(fd_bound);
 	com_close(fd_client);
