@@ -166,6 +166,9 @@ void com_close(int fd)
 	the underlying socket is closed. */
 ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 {
+#ifdef DEBUG
+	size_t _count = count;
+#endif
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
 	ssize_t size;
 	do {
@@ -175,7 +178,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 			return -1;
 		case 0:
 			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
-			return count;
+			goto exit;
 		default:
 			if (_fd.revents & POLLIN) {
 				size = read(fd, buf, count);
@@ -188,12 +191,19 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 			}
 		}
 	} while (count);
-	return 0;
+exit:
+#ifdef DEBUG
+	printf("RD: %zd/%zdB\n", _count - count, _count);
+#endif
+	return count;
 }
 
 
 ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 {
+#ifdef DEBUG
+	size_t _count = count;
+#endif
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
 	ssize_t size;
 	do {
@@ -203,7 +213,7 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 			return -1;
 		case 0:
 			fprintf(stderr, "com_write.poll: %d timeout (%d ms)\n", fd, timeout);
-			return count;
+			goto exit;
 		default:
 			if (_fd.revents & POLLOUT) {
 				size = write(fd, buf, count);
@@ -216,5 +226,9 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 			}
 		}
 	} while (count);
-	return 0;
+exit:
+#ifdef DEBUG
+	printf("WR: %zd/%zdB\n", _count - count, _count);
+#endif
+	return count;
 }
