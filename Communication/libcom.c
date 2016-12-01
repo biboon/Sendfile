@@ -193,7 +193,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 	} while (count);
 exit:
 #ifdef DEBUG
-	printf("RD: %zd/%zdB\n", _count - count, _count);
+	printf("RD %d: %zd/%zdB\n", fd, _count - count, _count);
 #endif
 	return count;
 }
@@ -228,7 +228,7 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 	} while (count);
 exit:
 #ifdef DEBUG
-	printf("WR: %zd/%zdB\n", _count - count, _count);
+	printf("WR %d: %zd/%zdB\n", fd, _count - count, _count);
 #endif
 	return count;
 }
