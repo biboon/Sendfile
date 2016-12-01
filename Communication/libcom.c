@@ -171,7 +171,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 #endif
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
 	ssize_t size;
-	do {
+	while (count) {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
 			perror("com_read.poll");
@@ -190,7 +190,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 				count -= size;
 			}
 		}
-	} while (count);
+	}
 exit:
 #ifdef DEBUG
 	printf("RD %d: %zd/%zdB\n", fd, _count - count, _count);
@@ -206,7 +206,7 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 #endif
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
 	ssize_t size;
-	do {
+	while (count) {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
 			perror("com_write.poll");
@@ -225,7 +225,7 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 				count -= size;
 			}
 		}
-	} while (count);
+	}
 exit:
 #ifdef DEBUG
 	printf("WR %d: %zd/%zdB\n", fd, _count - count, _count);
