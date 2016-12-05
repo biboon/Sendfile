@@ -169,8 +169,10 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 #ifdef DEBUG
 	size_t _count = count;
 #endif
+	ssize_t size = read(fd, buf, count);
+	if (-1 == size) { perror("com_read.read"); goto exit; }
+	buf += size; count -= size;
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
-	ssize_t size;
 	while (count) {
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
@@ -182,12 +184,8 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 		default:
 			if (_fd.revents & POLLIN) {
 				size = read(fd, buf, count);
-				if (-1 == size) {
-					perror("com_read.read");
-					return count;
-				}
-				buf += size;
-				count -= size;
+				if (-1 == size) { perror("com_read.read"); goto exit; }
+				buf += size; count -= size;
 			}
 		}
 	}
@@ -217,12 +215,8 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 		default:
 			if (_fd.revents & POLLOUT) {
 				size = write(fd, buf, count);
-				if (-1 == size) {
-					perror("com_write.write");
-					return count;
-				}
-				buf += size;
-				count -= size;
+				if (-1 == size) { perror("com_write.write"); goto exit; }
+				buf += size; count -= size;
 			}
 		}
 	}
