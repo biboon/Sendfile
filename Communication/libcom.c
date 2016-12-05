@@ -170,7 +170,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 	size_t _count = count;
 #endif
 	ssize_t size = read(fd, buf, count);
-	if (-1 == size) { perror("com_read.read"); goto exit; }
+	if (-1 == size && errno && (errno & EAGAIN)) { perror("com_read.read"); goto exit; }
 	buf += size; count -= size;
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
 	while (count) {
