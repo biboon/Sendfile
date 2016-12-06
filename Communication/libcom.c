@@ -170,7 +170,6 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 	size_t _count = count;
 #endif
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
-	ssize_t size;
 	int poll_result = 1;
 	int poll_called = 0;
 	do {
@@ -183,7 +182,7 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 			goto exit;
 		default:
 			if (!poll_called || _fd.revents & POLLIN) {
-				size = read(fd, buf, count);
+				ssize_t size = read(fd, buf, count);
 				if (size != -1) {
 					buf += size;
 					count -= size;
@@ -212,7 +211,6 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 	size_t _count = count;
 #endif
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
-	ssize_t size;
 	int poll_result = 1;
 	int poll_called = 0;
 	do {
@@ -225,7 +223,7 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 			goto exit;
 		default:
 			if (!poll_called || _fd.revents & POLLOUT) {
-				size = write(fd, buf, count);
+				ssize_t size = write(fd, buf, count);
 				if (size != -1) {
 					buf += size;
 					count -= size;
