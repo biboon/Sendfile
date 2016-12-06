@@ -188,14 +188,12 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 					buf += size;
 					count -= size;
 					poll_called = 0;
+				} else if (errno == EAGAIN) {
+					poll_result = poll(&_fd, 1, timeout);
+					poll_called = 1;
 				} else {
-					if (errno == EAGAIN) {
-						poll_result = poll(&_fd, 1, timeout);
-						poll_called = 1;
-					} else {
-						perror("com_read.read");
-						goto exit;
-					}
+					perror("com_read.read");
+					goto exit;
 				}
 			}
 		}
@@ -232,14 +230,12 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 					buf += size;
 					count -= size;
 					poll_called = 0;
+				} else if (errno == EAGAIN) {
+					poll_result = poll(&_fd, 1, timeout);
+					poll_called = 1;
 				} else {
-					if (errno == EAGAIN) {
-						poll_result = poll(&_fd, 1, timeout);
-						poll_called = 1;
-					} else {
-						perror("com_write.write");
-						goto exit;
-					}
+					perror("com_write.write");
+					goto exit;
 				}
 			}
 		}
