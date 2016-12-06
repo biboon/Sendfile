@@ -11,7 +11,7 @@
 #include <libcom.h>
 
 int main(int argc, char const *argv[]) {
-	int fd_bound = com_tcp_bind(argv[1]);
+	int fd_bound = com_bind_stream(argv[1]);
 	if (fd_bound == -1) return -1;
 
 	printf("Waiting for a client to connect...\n");
@@ -31,9 +31,11 @@ int main(int argc, char const *argv[]) {
 
 	size_t size = 50 * 1024 * 1024 * sizeof(char);
 	unsigned char *buffer = malloc(size);
-	size = com_read(fd_client, buffer, size, -1);
-	printf("Read result: %zu\n", size);
-
+	unsigned i = 50;
+	for (; i < 51; ++i) {
+		size_t _size = com_read_fixed(fd_client, buffer, size, 1000);
+		printf("Read result %u: %zu\n", i, _size);
+	}
 	com_close(fd_bound);
 	com_close(fd_client);
 

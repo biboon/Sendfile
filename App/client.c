@@ -7,7 +7,7 @@
 #include <libcom.h>
 
 int main(int argc, char const *argv[]) {
-	int fd = com_tcp_connect(argv[1], argv[2]);
+	int fd = com_connect_stream(argv[1], argv[2]);
 	if (fd == -1) return -1;
 
 	printf("Connected to server!\n");

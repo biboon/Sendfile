@@ -16,8 +16,8 @@
 
 
 /* Functions to create a non blocking udp/tcp socket and connect it to host@service */
-static int com_connect(const char *host, const char *service,
-	int flags, int family, int socktype, int protocol)
+static int com_connect(const char *host, const char *service, int flags,
+	int family, int socktype, int protocol)
 {
 	int status, fd;
 	struct addrinfo *result, *rp;
@@ -57,20 +57,20 @@ static int com_connect(const char *host, const char *service,
 	return fd;
 }
 
-int com_tcp_connect(const char *host, const char *service)
+int com_connect_stream(const char *host, const char *service)
 {
 	return com_connect(host, service, 0, AF_UNSPEC, SOCK_STREAM, 0);
 }
 
-int com_udp_connect(const char *host, const char *service)
+int com_connect_dgram(const char *host, const char *service)
 {
 	return com_connect(host, service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
 }
 
 
 /* Functions to bind udp/tcp sockets to service */
-static int com_bind(const char *service,
-	int flags, int family, int socktype, int protocol)
+static int com_bind(const char *service, int flags, int family, int socktype,
+	int protocol)
 {
 	int status, fd;
 	struct addrinfo *result, *rp;
@@ -110,7 +110,7 @@ static int com_bind(const char *service,
 	return fd;
 }
 
-int com_tcp_bind(const char *service)
+int com_bind_stream(const char *service)
 {
 	int fd = com_bind(service, AI_PASSIVE, AF_UNSPEC, SOCK_STREAM, 0);
 	if (fd == -1) return -1;
@@ -126,7 +126,7 @@ int com_tcp_bind(const char *service)
 	return fd;
 }
 
-int com_udp_bind(const char *service)
+int com_bind_dgram(const char *service)
 {
 	return com_bind(service, 0, AF_UNSPEC, SOCK_DGRAM, 0);
 }
@@ -165,6 +165,30 @@ void com_close(int fd)
 	function will not timeout and will only return if a signal is caught or if
 	the underlying socket is closed. */
 ssize_t com_read(int fd, void *buf, size_t count, int timeout)
+{
+	ssize_t size = read(fd, buf, count);
+	if (size != -1) return count - size;
+	if (errno == EAGAIN) {
+		struct pollfd _fd = { .fd = fd, .events = POLLIN };
+		switch (poll(&_fd, 1, timeout)) {
+		case -1:
+			perror("com_read.poll");
+			return -1;
+		case 0:
+			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
+			return count;
+		default:
+			size = read(fd, buf, count);
+			if (size != -1) return count - size;
+			perror("com_read.read");
+			return count;
+		};
+	}
+	return -1;
+}
+
+
+ssize_t com_read_fixed(int fd, void *buf, size_t count, int timeout)
 {
 #ifdef DEBUG
 	size_t _count = count;
