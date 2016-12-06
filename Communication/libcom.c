@@ -169,12 +169,12 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 #ifdef DEBUG
 	size_t _count = count;
 #endif
-	ssize_t size = read(fd, buf, count);
-	if (-1 == size && !(errno & EAGAIN)) { perror("com_read.read"); goto exit; }
-	if (size > 0) { buf += size; count -= size; }
 	struct pollfd _fd = { .fd = fd, .events = POLLIN };
-	while (count) {
-		switch (poll(&_fd, 1, timeout)) {
+	ssize_t size;
+	int poll_result = 1;
+	int poll_called = 0;
+	do {
+		switch (poll_result) {
 		case -1:
 			perror("com_read.poll");
 			return -1;
@@ -182,13 +182,24 @@ ssize_t com_read(int fd, void *buf, size_t count, int timeout)
 			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
 			goto exit;
 		default:
-			if (_fd.revents & POLLIN) {
+			if (!poll_called || _fd.revents & POLLIN) {
 				size = read(fd, buf, count);
-				if (-1 == size) { perror("com_read.read"); goto exit; }
-				buf += size; count -= size;
+				if (size != -1) {
+					buf += size;
+					count -= size;
+					poll_called = 0;
+				} else {
+					if (errno == EAGAIN) {
+						poll_result = poll(&_fd, 1, timeout);
+						poll_called = 1;
+					} else {
+						perror("com_read.read");
+						goto exit;
+					}
+				}
 			}
 		}
-	}
+	} while (count);
 exit:
 #ifdef DEBUG
 	printf("RD %d: %zd/%zdB\n", fd, _count - count, _count);
@@ -204,8 +215,10 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 #endif
 	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
 	ssize_t size;
-	while (count) {
-		switch (poll(&_fd, 1, timeout)) {
+	int poll_result = 1;
+	int poll_called = 0;
+	do {
+		switch (poll_result) {
 		case -1:
 			perror("com_write.poll");
 			return -1;
@@ -213,13 +226,24 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 			fprintf(stderr, "com_write.poll: %d timeout (%d ms)\n", fd, timeout);
 			goto exit;
 		default:
-			if (_fd.revents & POLLOUT) {
+			if (!poll_called || _fd.revents & POLLOUT) {
 				size = write(fd, buf, count);
-				if (-1 == size) { perror("com_write.write"); goto exit; }
-				buf += size; count -= size;
+				if (size != -1) {
+					buf += size;
+					count -= size;
+					poll_called = 0;
+				} else {
+					if (errno == EAGAIN) {
+						poll_result = poll(&_fd, 1, timeout);
+						poll_called = 1;
+					} else {
+						perror("com_write.write");
+						goto exit;
+					}
+				}
 			}
 		}
-	}
+	} while (count);
 exit:
 #ifdef DEBUG
 	printf("WR %d: %zd/%zdB\n", fd, _count - count, _count);
