@@ -16,7 +16,7 @@
 
 
 /* Functions to create a non blocking udp/tcp socket and connect it to host@service */
-static inline int com_connect(const char *host, const char *service,
+static int com_connect(const char *host, const char *service,
 	int flags, int family, int socktype, int protocol)
 {
 	int status, fd;
@@ -69,7 +69,7 @@ int com_udp_connect(const char *host, const char *service)
 
 
 /* Functions to bind udp/tcp sockets to service */
-static inline int com_bind(const char *service,
+static int com_bind(const char *service,
 	int flags, int family, int socktype, int protocol)
 {
 	int status, fd;
