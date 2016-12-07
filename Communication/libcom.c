@@ -156,87 +156,89 @@ void com_close(int fd)
 }
 
 
-/*	Read and write functions
-	These functions try to read from or write to the file descriptor exactly
-	count bytes and store them in the buffer pointed by buf. If timeout
-	(milliseconds) is reached before the fd was available, the function returns
-	and gives the amount of bytes left to read or write. If timeout is set to 0,
-	the function immediately tries to operate on the fd. If it is set to -1, the
-	function will not timeout and will only return if a signal is caught or if
-	the underlying socket is closed. */
-ssize_t com_read(int fd, void *buf, size_t count, int timeout)
+/* This functions performs a single call to read and saves in buffer pointed by
+ * buf at most count bytes. Thus, this function is more suited to be used on
+ * SOCK_DGRAM type sockets. However, this should not be a problem if you use it
+ * on SOCK_STREAM sockets. */
+ssize_t com_read_dgram(int fd, void *buf, size_t count, int timeout)
 {
 	ssize_t size = read(fd, buf, count);
-	if (size != -1) return count - size;
+	if (size != -1) return size;
 	if (errno == EAGAIN) {
 		struct pollfd _fd = { .fd = fd, .events = POLLIN };
 		switch (poll(&_fd, 1, timeout)) {
 		case -1:
-			perror("com_read.poll");
+			perror("com_read_dgram.poll");
 			return -1;
 		case 0:
-			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
-			return count;
+			fprintf(stderr, "com_read_dgram.poll: %d timeout (%d ms)\n", fd, timeout);
+			return 0;
 		default:
 			size = read(fd, buf, count);
-			if (size != -1) return count - size;
-			perror("com_read.read");
-			return count;
+			if (size != -1) {
+#ifdef DEBUG
+				printf("RD dgram %d: %zd/%zdB\n", fd, size, count);
+#endif
+				return size;
+			}
+			perror("com_read_dgram.read");
+			return -1;
 		};
 	}
+	perror("com_read_dgram.read");
 	return -1;
 }
 
-
-ssize_t com_read_fixed(int fd, void *buf, size_t count, int timeout)
+/* This function reads from the file descriptor fd and saves exactly count bytes
+ * in the buffer pointed by buf. Thus, this function is suited to be used on
+ * SOCK_STREAM sockets, but definitely NOT on SOCK_DGRAM. */
+ssize_t com_read_stream(int fd, void *buf, size_t count, int timeout)
 {
-#ifdef DEBUG
 	size_t _count = count;
-#endif
-	struct pollfd _fd = { .fd = fd, .events = POLLIN };
+	struct pollfd _fd = { .fd = fd, .events = POLLIN, .revents = POLLIN };
 	int poll_result = 1;
-	int poll_called = 0;
 	do {
 		switch (poll_result) {
 		case -1:
-			perror("com_read.poll");
+			perror("com_read_stream.poll");
 			return -1;
 		case 0:
-			fprintf(stderr, "com_read.poll: %d timeout (%d ms)\n", fd, timeout);
+			fprintf(stderr, "com_read_stream.poll: %d timeout (%d ms)\n", fd, timeout);
 			goto exit;
 		default:
-			if (!poll_called || _fd.revents & POLLIN) {
+			if (_fd.revents & POLLIN) {
 				ssize_t size = read(fd, buf, count);
-				if (size != -1) {
+				if (size > 0) {
 					buf += size;
 					count -= size;
-					poll_called = 0;
-				} else if (errno == EAGAIN) {
+					_fd.revents |= POLLIN;
+				} else if (size == -1 && errno == EAGAIN) {
 					poll_result = poll(&_fd, 1, timeout);
-					poll_called = 1;
-				} else {
-					perror("com_read.read");
+				} else if (size == 0) {
 					goto exit;
+				} else {
+					perror("com_read_stream.read");
+					return -1;
 				}
 			}
 		}
 	} while (count);
 exit:
 #ifdef DEBUG
-	printf("RD %d: %zd/%zdB\n", fd, _count - count, _count);
+	printf("RD stream %d: %zd/%zdB\n", fd, _count - count, _count);
 #endif
-	return count;
+	return _count - count;
 }
 
-
+/* This function writes exactly count bytes to the file descriptor fd. For
+ * SOCK_STREAM sockets, there is no problem, however for SOCK_DGRAM, if the
+ * size specified in count is too large, there should be an error. The data to
+ * write is stored in the buffer pointed by buf. */
 ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 {
-#ifdef DEBUG
 	size_t _count = count;
-#endif
-	struct pollfd _fd = { .fd = fd, .events = POLLOUT };
+	struct pollfd _fd = { .fd = fd, .events = POLLOUT, .revents = POLLOUT };
 	int poll_result = 1;
-	int poll_called = 0;
 	do {
 		switch (poll_result) {
 		case -1:
@@ -246,18 +248,17 @@ ssize_t com_write(int fd, const void *buf, size_t count, int timeout)
 			fprintf(stderr, "com_write.poll: %d timeout (%d ms)\n", fd, timeout);
 			goto exit;
 		default:
-			if (!poll_called || _fd.revents & POLLOUT) {
+			if (_fd.revents & POLLOUT) {
 				ssize_t size = write(fd, buf, count);
-				if (size != -1) {
+				if (size > 0) {
 					buf += size;
 					count -= size;
-					poll_called = 0;
-				} else if (errno == EAGAIN) {
+					_fd.revents |= POLLOUT;
+				} else if (size == -1 && errno == EAGAIN) {
 					poll_result = poll(&_fd, 1, timeout);
-					poll_called = 1;
 				} else {
 					perror("com_write.write");
-					goto exit;
+					return -1;
 				}
 			}
 		}
@@ -266,5 +267,5 @@ exit:
 #ifdef DEBUG
 	printf("WR %d: %zd/%zdB\n", fd, _count - count, _count);
 #endif
-	return count;
+	return _count - count;
 }

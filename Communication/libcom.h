@@ -7,8 +7,8 @@ int com_bind_stream(const char *service);
 int com_bind_dgram(const char *service);
 int com_get_info(int fd, char *host, size_t hostlen, char *serv, size_t servlen);
 void com_close(int fd);
-ssize_t com_read(int fd, void *buf, size_t count, int timeout);
-ssize_t com_read_fixed(int fd, void *buf, size_t count, int timeout);
+ssize_t com_read_dgram(int fd, void *buf, size_t count, int timeout);
+ssize_t com_read_stream(int fd, void *buf, size_t count, int timeout);
 ssize_t com_write(int fd, const void *buf, size_t count, int timeout);
 
 #endif
